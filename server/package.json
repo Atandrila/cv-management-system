@@ -1,0 +1,39 @@
+{
+  "name": "cv-management-server",
+  "version": "1.0.0",
+  "description": "Backend API for the CV Management System",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "setup": "node scripts/setup.js",
+    "db:inspect": "node scripts/inspect-db.js",
+    "oauth:check": "node scripts/check-oauth.js",
+    "seed": "prisma db seed",
+    "test": "node --test"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "cors": "^2.8.5",
+    "cv-management-system": "file:..",
+    "dotenv": "^16.0.0",
+    "express": "^5.0.0",
+    "express-session": "^1.19.0",
+    "helmet": "^8.0.0",
+    "morgan": "^1.10.0",
+    "passport": "^0.7.0",
+    "passport-github2": "^0.1.12",
+    "passport-google-oauth20": "^2.0.0",
+    "passport-oauth2": "^1.8.0"
+  },
+  "devDependencies": {
+    "prisma": "^6.19.3"
+  }
+}

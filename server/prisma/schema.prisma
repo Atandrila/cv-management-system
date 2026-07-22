@@ -1,0 +1,302 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+enum RoleName {
+  CANDIDATE
+  RECRUITER
+  ADMIN
+}
+
+enum UiLanguage {
+  EN
+  BN
+}
+
+enum UiTheme {
+  LIGHT
+  DARK
+}
+
+enum AttributeCategory {
+  CERTIFICATION
+  DOMAIN_KNOWLEDGE
+  PERSONAL_INFORMATION
+  SOFT_SKILLS
+  EDUCATION
+  EXPERIENCE
+  OTHER
+}
+
+enum AttributeType {
+  STRING
+  TEXT
+  IMAGE
+  NUMERIC
+  DATE
+  PERIOD
+  BOOLEAN
+  SELECT
+}
+
+enum PositionLevel {
+  JUNIOR
+  MIDDLE
+  SENIOR
+  C_LEVEL
+}
+
+enum AccessOperator {
+  EQUALS
+  NOT_EQUALS
+  GREATER_THAN
+  GREATER_OR_EQUAL
+  LESS_THAN
+  LESS_OR_EQUAL
+  CONTAINS
+  IS_TRUE
+  IS_FALSE
+}
+
+enum CvStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model User {
+  id                String     @id @default(cuid())
+  email             String     @unique
+  firstName         String?
+  lastName          String?
+  location          String?
+  photoUrl          String?
+  isBlocked         Boolean    @default(false)
+  preferredLanguage UiLanguage @default(EN)
+  preferredTheme    UiTheme    @default(LIGHT)
+  version           Int        @default(1)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  roles           UserRole[]
+  socialAccounts  SocialAccount[]
+  attributeValues ProfileAttributeValue[]
+  projects         Project[]
+  cvs              Cv[]
+  posts            DiscussionPost[]
+  likes            CvLike[]
+
+  @@index([email])
+  @@index([isBlocked])
+  @@index([createdAt])
+}
+
+model Role {
+  id        String   @id @default(cuid())
+  name      RoleName @unique
+  createdAt DateTime @default(now())
+  users     UserRole[]
+}
+
+model UserRole {
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  @@id([userId, roleId])
+  @@index([roleId])
+}
+
+model SocialAccount {
+  id                String   @id @default(cuid())
+  provider          String
+  providerAccountId String
+  userId            String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model AttributeDefinition {
+  id          String            @id @default(cuid())
+  category    AttributeCategory
+  name        String            @unique
+  description String            @default("")
+  type        AttributeType
+  isBuiltIn   Boolean           @default(false)
+  version     Int               @default(1)
+  usageCount  Int               @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  options     AttributeOption[]
+  values      ProfileAttributeValue[]
+  positions   PositionAttribute[]
+  accessRules AccessRule[]
+  @@index([category, name])
+  @@index([updatedAt])
+}
+
+model AttributeOption {
+  id          String @id @default(cuid())
+  label       String
+  sortOrder   Int    @default(0)
+  attributeId String
+  attribute   AttributeDefinition @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  @@unique([attributeId, label])
+  @@index([attributeId, sortOrder])
+}
+
+model ProfileAttributeValue {
+  id          String   @id @default(cuid())
+  userId      String
+  attributeId String
+  value       String   @default("")
+  version     Int      @default(1)
+  updatedAt   DateTime @updatedAt
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attribute   AttributeDefinition @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  @@unique([userId, attributeId])
+  @@index([attributeId])
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  startDate   DateTime?
+  endDate     DateTime?
+  description String   @default("")
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags        ProjectTag[]
+  cvs         CvProject[]
+  @@index([userId, updatedAt])
+}
+
+model TechnologyTag {
+  id        String @id @default(cuid())
+  name      String @unique
+  projects  ProjectTag[]
+  positions PositionTag[]
+  @@index([name])
+}
+
+model ProjectTag {
+  projectId String
+  tagId     String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tag       TechnologyTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  @@id([projectId, tagId])
+  @@index([tagId])
+}
+
+model Position {
+  id          String        @id @default(cuid())
+  title       String
+  description String        @default("")
+  company     String        @default("")
+  level       PositionLevel?
+  isPublic    Boolean       @default(true)
+  maxProjects Int           @default(3)
+  version     Int           @default(1)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  attributes  PositionAttribute[]
+  accessRules AccessRule[]
+  tags        PositionTag[]
+  cvs         Cv[]
+  posts       DiscussionPost[]
+  @@index([updatedAt])
+  @@index([title])
+  @@index([company, level])
+}
+
+model PositionAttribute {
+  positionId  String
+  attributeId String
+  sortOrder   Int     @default(0)
+  required    Boolean @default(true)
+  position    Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  attribute   AttributeDefinition @relation(fields: [attributeId], references: [id], onDelete: Restrict)
+  @@id([positionId, attributeId])
+  @@index([attributeId])
+}
+
+model AccessRule {
+  id          String         @id @default(cuid())
+  positionId  String
+  attributeId String
+  operator    AccessOperator
+  expected    String         @default("")
+  position    Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  attribute   AttributeDefinition @relation(fields: [attributeId], references: [id], onDelete: Restrict)
+  @@index([positionId])
+  @@index([attributeId])
+}
+
+model PositionTag {
+  positionId String
+  tagId      String
+  position   Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  tag        TechnologyTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  @@id([positionId, tagId])
+  @@index([tagId])
+}
+
+model Cv {
+  id         String   @id @default(cuid())
+  userId     String
+  positionId String
+  status     CvStatus @default(DRAFT)
+  version    Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  publishedAt DateTime?
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  position   Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  projects   CvProject[]
+  likes      CvLike[]
+  @@unique([userId, positionId])
+  @@index([positionId, status])
+  @@index([userId, updatedAt])
+}
+
+model CvProject {
+  cvId      String
+  projectId String
+  sortOrder Int @default(0)
+  cv        Cv @relation(fields: [cvId], references: [id], onDelete: Cascade)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@id([cvId, projectId])
+  @@index([projectId])
+}
+
+model DiscussionPost {
+  id         String   @id @default(cuid())
+  positionId String
+  authorId   String
+  content    String
+  createdAt  DateTime @default(now())
+  position   Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  author     User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  @@index([positionId, createdAt])
+}
+
+model CvLike {
+  cvId      String
+  userId    String
+  createdAt DateTime @default(now())
+  cv        Cv @relation(fields: [cvId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([cvId, userId])
+  @@index([userId])
+}

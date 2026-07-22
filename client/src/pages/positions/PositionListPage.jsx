@@ -1,0 +1,20 @@
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { api } from "../../api/client";
+import { Empty, ErrorAlert, Loading } from "../../components/AsyncState";
+import useAuth from "../../hooks/useAuth";
+
+export default function PositionListPage() {
+  const { user } = useAuth(); const navigate = useNavigate(); const [params] = useSearchParams(); const [rows, setRows] = useState(null); const [selected, setSelected] = useState([]); const [error, setError] = useState(null);
+  const staff = user?.roles.some((r) => ["RECRUITER", "ADMIN"].includes(r));
+  const query = params.get("q") || "";
+  const load = useCallback(() => { api(`/positions?q=${encodeURIComponent(query)}`).then(setRows).catch(setError); }, [query]);
+  useEffect(() => { load(); }, [load]);
+  const select = (id) => setSelected((old) => old.includes(id) ? old.filter((x) => x !== id) : [...old, id]);
+  const remove = async () => { if (!confirm(`Delete ${selected.length} selected position(s)?`)) return; try { await Promise.all(selected.map((id) => api(`/positions/${id}`, { method: "DELETE" }))); setSelected([]); load(); } catch (e) { setError(e); } };
+  const duplicate = async () => { try { const created = await api(`/positions/${selected[0]}/duplicate`, { method: "POST" }); navigate(`/positions/${created.id}/edit`); } catch (e) { setError(e); } };
+  return <div className="container py-4"><div className="d-flex justify-content-between align-items-center mb-3"><div><h1 className="h2 mb-1">Positions</h1><p className="text-secondary mb-0">Position templates and access-aware opportunities.</p></div>{staff && <button className="btn btn-primary" onClick={() => navigate("/positions/new")}><i className="bi bi-plus-lg me-2" />Create position</button>}</div><ErrorAlert error={error} />
+    {selected.length > 0 && <div className="toolbar alert alert-primary d-flex align-items-center gap-2"><strong className="me-auto">{selected.length} selected</strong><button className="btn btn-sm btn-primary" disabled={selected.length !== 1} onClick={() => navigate(`/positions/${selected[0]}/edit`)}><i className="bi bi-pencil me-1" />Edit</button><button className="btn btn-sm btn-outline-primary" disabled={selected.length !== 1} onClick={duplicate}><i className="bi bi-copy me-1" />Duplicate</button><button className="btn btn-sm btn-danger" onClick={remove}><i className="bi bi-trash me-1" />Delete</button><button className="btn-close ms-2" onClick={() => setSelected([])} /></div>}
+    {!rows ? <Loading /> : rows.length === 0 ? <Empty icon="briefcase">No accessible positions found.</Empty> : <div className="table-responsive"><table className="table table-hover table-select align-middle"><thead><tr>{staff && <th className="text-center"><input type="checkbox" checked={selected.length === rows.length} onChange={() => setSelected(selected.length === rows.length ? [] : rows.map((x) => x.id))} /></th>}<th>Title</th><th>Company</th><th>Level</th><th>Access</th><th>Tags</th><th className="text-end">CVs</th></tr></thead><tbody>{rows.map((p) => <tr key={p.id} className={selected.includes(p.id) ? "selected" : ""} onClick={() => staff ? select(p.id) : navigate(`/positions/${p.id}`)} onDoubleClick={() => navigate(`/positions/${p.id}`)}>{staff && <td className="text-center"><input type="checkbox" checked={selected.includes(p.id)} readOnly /></td>}<td><button className="btn btn-link p-0 fw-semibold text-decoration-none" onClick={(e) => { e.stopPropagation(); navigate(`/positions/${p.id}`); }}>{p.title}</button><div className="small text-secondary text-truncate" style={{ maxWidth: 360 }}>{p.description}</div></td><td>{p.company || "—"}</td><td>{p.level?.replace("_", "-") || "—"}</td><td><span className={`badge text-bg-${p.isPublic ? "success" : "warning"}`}>{p.isPublic ? "Public" : "Restricted"}</span></td><td>{p.tags.map((x) => <span className="badge text-bg-secondary me-1" key={x.tagId}>{x.tag.name}</span>)}</td><td className="text-end">{p._count.cvs}</td></tr>)}</tbody></table><p className="small text-secondary">Select rows to reveal actions. Double-click a row to open it.</p></div>}
+  </div>;
+}

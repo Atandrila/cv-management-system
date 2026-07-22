@@ -1,0 +1,3 @@
+export function Loading({ label = "Loading..." }) { return <div className="py-5 text-center"><div className="spinner-border text-primary" /><p className="text-secondary mt-3">{label}</p></div>; }
+export function ErrorAlert({ error }) { return error ? <div className="alert alert-danger" role="alert"><i className="bi bi-exclamation-triangle me-2" />{error.message || String(error)}</div> : null; }
+export function Empty({ icon = "inbox", children = "Nothing here yet." }) { return <div className="text-center text-secondary py-5"><i className={`bi bi-${icon} display-4`} /><p className="mt-3">{children}</p></div>; }
