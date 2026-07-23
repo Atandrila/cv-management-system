@@ -1,5 +1,5 @@
-# CV Forge - CV Management System
 
+<<<<<<< HEAD
 A complete React + Express recruitment platform built for the course-project specification in `Course Project.docx`. It uses a normalized Prisma data model backed by a free Neon PostgreSQL database.
 
 ## Included features
@@ -190,3 +190,5 @@ server/prisma/          PostgreSQL Prisma schema, migrations, and seed data
 server/tests/           Domain/access-rule unit tests
 Course Project.docx     Original assignment
 ```
+=======
+>>>>>>> d5df4db0ca0a7902eb9696b2bfbf119c48e256c3
