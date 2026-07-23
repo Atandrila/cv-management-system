@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "setup": "npm --prefix server run setup",
-    "render:build": "npm install --prefix server && npm install --prefix client && npm --prefix server run db:generate && npm --prefix server run db:deploy && npm --prefix server run seed && npm --prefix client run build",
+    "render:build": "npm ci --prefix server --include=dev && npm ci --prefix client --include=dev && npm --prefix server run db:generate && npm --prefix server run db:deploy && npm --prefix server run seed && npm --prefix client run build",
     "render:start": "npm --prefix server start",
     "start": "node scripts/start.mjs",
     "dev": "node scripts/dev.mjs",
