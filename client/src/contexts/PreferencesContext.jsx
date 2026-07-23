@@ -102,6 +102,11 @@ const text = {
     mostPopular: "Most popular",
     openOpportunity: "Open opportunity",
     skillsDemand: "Skills in demand",
+    evaluatorAccess: "Evaluator access",
+    evaluatorHelp: "Use the reviewer credentials supplied with the submission.",
+    email: "Email",
+    password: "Password",
+    evaluatorSignIn: "Sign in as evaluator",
   },
   BN: {
     home: "হোম",
@@ -199,6 +204,11 @@ const text = {
     mostPopular: "সবচেয়ে জনপ্রিয়",
     openOpportunity: "উন্মুক্ত সুযোগ",
     skillsDemand: "চাহিদাসম্পন্ন দক্ষতা",
+    evaluatorAccess: "মূল্যায়নকারীর প্রবেশাধিকার",
+    evaluatorHelp: "জমা দেওয়ার সঙ্গে দেওয়া রিভিউয়ার তথ্য ব্যবহার করুন।",
+    email: "ইমেইল",
+    password: "পাসওয়ার্ড",
+    evaluatorSignIn: "মূল্যায়নকারী হিসেবে সাইন ইন",
   },
 };
 

@@ -1,5 +1,6 @@
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
+import bcrypt from "bcryptjs";
 
 process.env.NODE_ENV = "test";
 process.env.DEMO_LOGIN_ENABLED = "true";
@@ -123,6 +124,42 @@ test("a candidate can publish a complete CV and recruiters can then see it", asy
     assert.ok(afterPublish.data.some((cv) => cv.id === created.result.data.id));
   } finally {
     await prisma.position.deleteMany({ where: { id: positionId } });
+  }
+});
+
+test("evaluation credentials authenticate a fixed-role account and reject a wrong password", async () => {
+  const previous = process.env.EVALUATION_LOGIN_ENABLED;
+  process.env.EVALUATION_LOGIN_ENABLED = "true";
+  const email = `reviewer-test-${Date.now()}@cvforge.demo`;
+  const password = "EvaluationTestPassword!123";
+  const adminRole = await prisma.role.findUnique({ where: { name: "ADMIN" } });
+  const account = await prisma.user.create({
+    data: {
+      email,
+      firstName: "Test",
+      lastName: "Reviewer",
+      isEvaluationAccount: true,
+      passwordHash: await bcrypt.hash(password, 4),
+      roles: { create: { roleId: adminRole.id } },
+    },
+  });
+
+  try {
+    const rejected = await authenticatedRequest("/api/auth/evaluation", "", "POST", { email, password: "wrong-password" });
+    assert.equal(rejected.response.status, 401);
+    assert.equal(rejected.result.message, "Invalid evaluation email or password.");
+
+    const accepted = await authenticatedRequest("/api/auth/evaluation", "", "POST", { email, password });
+    assert.equal(accepted.response.status, 200, accepted.result?.message);
+    assert.deepEqual(accepted.result.data.roles, ["ADMIN"]);
+    const cookie = accepted.response.headers.get("set-cookie").split(";", 1)[0];
+    const me = await authenticatedGet("/api/auth/me", cookie);
+    assert.equal(me.authenticated, true);
+    assert.ok(me.data.roles.includes("ADMIN"));
+  } finally {
+    await prisma.user.delete({ where: { id: account.id } });
+    if (previous === undefined) delete process.env.EVALUATION_LOGIN_ENABLED;
+    else process.env.EVALUATION_LOGIN_ENABLED = previous;
   }
 });
 

@@ -1,11 +1,20 @@
 import { Router } from "express";
+import { rateLimit } from "express-rate-limit";
 import passport, { oauthAvailability } from "../config/passport.js";
-import { demoLogin, getCurrentUser, logout } from "../controllers/authController.js";
+import { demoLogin, evaluationLogin, getCurrentUser, logout } from "../controllers/authController.js";
 
 const router = Router();
 const appUrl = process.env.APP_URL || process.env.CLIENT_URL || "http://localhost:5000";
 const failedUrl = (provider, reason = "authentication_failed") => `${appUrl}/login?login=failed&provider=${provider}&reason=${encodeURIComponent(reason)}`;
 const unavailable = (provider) => (_request, response) => response.redirect(failedUrl(provider.toLowerCase(), "not_configured"));
+const evaluationLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { success: false, message: "Too many failed evaluation logins. Try again in 15 minutes." },
+});
 
 function completeOAuth(provider) {
   return (request, response, next) => {
@@ -25,6 +34,7 @@ router.get("/google", oauthAvailability.google ? passport.authenticate("google",
 router.get("/google/callback", oauthAvailability.google ? completeOAuth("google") : unavailable("Google"));
 router.get("/me", getCurrentUser);
 router.post("/demo", demoLogin);
+router.post("/evaluation", evaluationLoginLimiter, evaluationLogin);
 router.post("/logout", logout);
 
 export default router;

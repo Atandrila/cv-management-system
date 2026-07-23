@@ -15,6 +15,7 @@ import apiRoutes from "./routes/apiRoutes.js";
 const app = express();
 const publicAppUrl = process.env.APP_URL || "http://localhost:5000";
 const PostgresSessionStore = connectPgSimple(session);
+app.set("trust proxy", process.env.NODE_ENV === "production" ? 1 : false);
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: [process.env.APP_URL || "http://localhost:5000", process.env.CLIENT_URL || "http://localhost:5173"], credentials: true }));
 app.use(express.json({ limit: "1mb" }));

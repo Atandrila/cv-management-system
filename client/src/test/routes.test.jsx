@@ -40,10 +40,10 @@ function userFor(role) {
   return { id: role.toLowerCase(), email: `${role.toLowerCase()}@demo.local`, firstName: role, lastName: "Demo", roles: [role], preferredLanguage: "EN", preferredTheme: "LIGHT", version: 1 };
 }
 
-function renderRoute(route, role) {
+function renderRoute(route, role, authOverrides = {}) {
   const user = userFor(role);
   return render(
-    <AuthContext.Provider value={{ user, setUser: vi.fn(), loading: false, authError: "", oauthAvailability: {}, demoLoginAvailable: false, isAuthenticated: Boolean(user), loginWith: vi.fn(), demoLogin: vi.fn(), logout: vi.fn(), refreshUser: vi.fn() }}>
+    <AuthContext.Provider value={{ user, setUser: vi.fn(), loading: false, authError: "", oauthAvailability: {}, demoLoginAvailable: false, evaluationLoginAvailable: false, isAuthenticated: Boolean(user), loginWith: vi.fn(), demoLogin: vi.fn(), evaluationLogin: vi.fn(), logout: vi.fn(), refreshUser: vi.fn(), ...authOverrides }}>
       <PreferencesProvider>
         <MemoryRouter initialEntries={[route]}><AppRoutes /></MemoryRouter>
       </PreferencesProvider>
@@ -82,5 +82,14 @@ describe("all application routes", () => {
     renderRoute("/positions", null);
     expect(await screen.findByRole("link", { name: "হোম" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "পদসমূহ" })).toBeInTheDocument();
+  });
+
+  it("shows the credential form only when evaluator access is enabled", async () => {
+    localStorage.setItem("cv-language", "EN");
+    renderRoute("/login", null, { evaluationLoginAvailable: true });
+    expect(await screen.findByRole("heading", { name: "Sign in to your workspace" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).toBeInTheDocument();
+    expect(screen.getByLabelText("Password")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in as evaluator" })).toBeInTheDocument();
   });
 });

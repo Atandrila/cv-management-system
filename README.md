@@ -107,6 +107,22 @@ The passwordless demo buttons and `/api/auth/demo` endpoint are disabled by defa
 
 Users cannot select a role during login. Recruiter/Admin permissions are enforced by the backend as well as hidden in the frontend.
 
+### Optional evaluator credentials
+
+For a time-limited course review, the application can seed dedicated password accounts without changing normal Google/GitHub registration. Add these only in Render's secret environment settings:
+
+```dotenv
+EVALUATION_LOGIN_ENABLED=true
+EVALUATION_ADMIN_EMAIL=reviewer-admin@cvforge.demo
+EVALUATION_ADMIN_PASSWORD=use-a-strong-random-password
+EVALUATION_RECRUITER_EMAIL=reviewer-recruiter@cvforge.demo
+EVALUATION_RECRUITER_PASSWORD=use-a-different-strong-random-password
+```
+
+Run `npm run setup` locally or redeploy on Render. The idempotent seed hashes both passwords, assigns fixed Admin/Recruiter roles, and prepares sample data. Passwords are never stored in Git. The login endpoint is rate-limited and returns the same error for unknown emails and wrong passwords.
+
+After evaluation, set `EVALUATION_LOGIN_ENABLED=false`, redeploy, and optionally delete the two evaluation users from **User Management**. Do not reuse either password anywhere else.
+
 ## Free deployment on Render
 
 Push the repository to GitHub. `server/.env` is ignored and must never be committed.
@@ -129,6 +145,11 @@ DATABASE_URL=YOUR_EXISTING_NEON_CONNECTION_STRING
 SESSION_SECRET=YOUR_LONG_RANDOM_SECRET
 ADMIN_EMAILS=YOUR_VERIFIED_OAUTH_EMAIL
 DEMO_LOGIN_ENABLED=false
+EVALUATION_LOGIN_ENABLED=true
+EVALUATION_ADMIN_EMAIL=reviewer-admin@cvforge.demo
+EVALUATION_ADMIN_PASSWORD=YOUR_STRONG_EVALUATION_ADMIN_PASSWORD
+EVALUATION_RECRUITER_EMAIL=reviewer-recruiter@cvforge.demo
+EVALUATION_RECRUITER_PASSWORD=YOUR_DIFFERENT_STRONG_RECRUITER_PASSWORD
 
 GITHUB_CLIENT_ID=YOUR_PRODUCTION_GITHUB_CLIENT_ID
 GITHUB_CLIENT_SECRET=YOUR_PRODUCTION_GITHUB_CLIENT_SECRET
@@ -141,7 +162,7 @@ GOOGLE_CALLBACK_URL=https://YOUR-SERVICE.onrender.com/api/auth/google/callback
 
 Add the Google callback URL to the existing Google web client. A GitHub OAuth app supports only one callback URL, so create a separate production GitHub OAuth app if you want localhost and Render login to work at the same time.
 
-The build command applies only committed Prisma migrations; it does not reset the database. Login sessions are stored in PostgreSQL so they survive application restarts.
+The build command applies only committed Prisma migrations, runs the idempotent seed, and builds the frontend; it does not reset the database. Login sessions are stored in PostgreSQL so they survive application restarts.
 
 ## Verification
 

@@ -75,6 +75,8 @@ model User {
   lastName          String?
   location          String?
   photoUrl          String?
+  passwordHash      String?
+  isEvaluationAccount Boolean @default(false)
   isBlocked         Boolean    @default(false)
   preferredLanguage UiLanguage @default(EN)
   preferredTheme    UiTheme    @default(LIGHT)
@@ -91,6 +93,7 @@ model User {
   likes            CvLike[]
 
   @@index([email])
+  @@index([isEvaluationAccount])
   @@index([isBlocked])
   @@index([createdAt])
 }
