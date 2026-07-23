@@ -10,8 +10,12 @@ export function formatUser(user) {
   };
 }
 
+export function isDemoLoginEnabled() {
+  return process.env.NODE_ENV !== "production" && process.env.DEMO_LOGIN_ENABLED?.toLowerCase() === "true";
+}
+
 export function getCurrentUser(request, response) {
-  response.json({ success: true, authenticated: Boolean(request.user), data: request.user ? formatUser(request.user) : null, oauthAvailability });
+  response.json({ success: true, authenticated: Boolean(request.user), data: request.user ? formatUser(request.user) : null, oauthAvailability, demoLoginAvailable: isDemoLoginEnabled() });
 }
 
 export function handleOAuthSuccess(_request, response) {
@@ -20,7 +24,7 @@ export function handleOAuthSuccess(_request, response) {
 
 export async function demoLogin(request, response, next) {
   try {
-    if (process.env.NODE_ENV === "production") return response.status(404).json({ success: false, message: "Not found." });
+    if (!isDemoLoginEnabled()) return response.status(404).json({ success: false, message: "Not found." });
     const role = ["CANDIDATE", "RECRUITER", "ADMIN"].includes(request.body.role) ? request.body.role : "CANDIDATE";
     const user = await prisma.user.findUnique({ where: { email: `${role.toLowerCase()}@demo.local` } });
     if (!user || user.isBlocked) return response.status(403).json({ success: false, message: "Demo user is unavailable. Run npm run setup." });

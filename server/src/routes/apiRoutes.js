@@ -19,9 +19,10 @@ const projectInclude = { tags: { include: { tag: true } } };
 async function tagsConnect(names) {
   const cleaned = unique(asArray(names).map((name) => cleanText(name, 40).toLowerCase()));
   if (!cleaned.length) return [];
-  const values = cleaned.flatMap((name) => [randomUUID(), name]);
-  const placeholders = cleaned.map(() => "(?, ?)").join(", ");
-  await prisma.$executeRawUnsafe(`INSERT OR IGNORE INTO "TechnologyTag" ("id", "name") VALUES ${placeholders}`, ...values);
+  await prisma.technologyTag.createMany({
+    data: cleaned.map((name) => ({ id: randomUUID(), name })),
+    skipDuplicates: true,
+  });
   const tags = await prisma.technologyTag.findMany({ where: { name: { in: cleaned } } });
   return tags.map((tag) => ({ tagId: tag.id }));
 }
@@ -33,8 +34,16 @@ async function candidateValues(userId) {
 async function fullTextPositionIds(query) {
   const tokens = cleanText(query, 100).toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
   if (!tokens.length) return null;
-  const expression = tokens.map((token) => `"${token.replaceAll('"', '""')}"*`).join(" AND ");
-  const matches = await prisma.$queryRawUnsafe('SELECT "id" FROM "PositionSearch" WHERE "PositionSearch" MATCH ? LIMIT 100', expression);
+  const expression = tokens.map((token) => `${token}:*`).join(" & ");
+  const matches = await prisma.$queryRaw`
+    SELECT "id"
+    FROM "Position"
+    WHERE to_tsvector(
+      'simple',
+      coalesce("title", '') || ' ' || coalesce("company", '') || ' ' || coalesce("description", '')
+    ) @@ to_tsquery('simple', ${expression})
+    LIMIT 100
+  `;
   return matches.map((item) => item.id);
 }
 
@@ -99,8 +108,8 @@ router.get("/search", async (request, response, next) => {
     const visible = positions.filter((item) => positionAccessible(item, values, request.user));
     let cvs = [], users = [];
     if (hasRole(request.user, "RECRUITER", "ADMIN")) {
-      cvs = await prisma.cv.findMany({ where: { status: "PUBLISHED", OR: [{ position: { title: { contains: q } } }, { user: { firstName: { contains: q } } }, { user: { lastName: { contains: q } } }] }, take: 20, include: { position: true, user: true, _count: { select: { likes: true } } } });
-      users = await prisma.user.findMany({ where: { OR: [{ firstName: { contains: q } }, { lastName: { contains: q } }, { email: { contains: q } }] }, take: 20, select: { id: true, firstName: true, lastName: true, photoUrl: true } });
+      cvs = await prisma.cv.findMany({ where: { status: "PUBLISHED", OR: [{ position: { title: { contains: q, mode: "insensitive" } } }, { user: { firstName: { contains: q, mode: "insensitive" } } }, { user: { lastName: { contains: q, mode: "insensitive" } } }] }, take: 20, include: { position: true, user: true, _count: { select: { likes: true } } } });
+      users = await prisma.user.findMany({ where: { OR: [{ firstName: { contains: q, mode: "insensitive" } }, { lastName: { contains: q, mode: "insensitive" } }, { email: { contains: q, mode: "insensitive" } }] }, take: 20, select: { id: true, firstName: true, lastName: true, photoUrl: true } });
     }
     response.json({ success: true, data: { positions: visible, cvs, users } });
   } catch (error) { next(error); }
@@ -203,6 +212,21 @@ router.put("/profile", requireAuthentication, async (request, response, next) =>
     if (!current) return response.status(404).json({ success: false, message: "User not found." });
     if (current.version !== Number(request.body.version)) return conflict(response, "Profile");
     const user = await prisma.user.update({ where: { id }, data: { firstName: cleanText(request.body.firstName, 80), lastName: cleanText(request.body.lastName, 80), location: cleanText(request.body.location, 120), photoUrl: cleanText(request.body.photoUrl, 1000) || null, preferredLanguage: request.body.preferredLanguage || current.preferredLanguage, preferredTheme: request.body.preferredTheme || current.preferredTheme, version: { increment: 1 } }, include: { roles: { include: { role: true } } } });
+    response.json({ success: true, data: formatUser(user) });
+  } catch (error) { next(error); }
+});
+
+router.patch("/profile/preferences", requireAuthentication, async (request, response, next) => {
+  try {
+    const data = {};
+    if (["EN", "BN"].includes(request.body.preferredLanguage)) data.preferredLanguage = request.body.preferredLanguage;
+    if (["LIGHT", "DARK"].includes(request.body.preferredTheme)) data.preferredTheme = request.body.preferredTheme;
+    if (!Object.keys(data).length) return response.status(400).json({ success: false, message: "A valid language or theme is required." });
+    const user = await prisma.user.update({
+      where: { id: request.user.id },
+      data,
+      include: { roles: { include: { role: true } } },
+    });
     response.json({ success: true, data: formatUser(user) });
   } catch (error) { next(error); }
 });

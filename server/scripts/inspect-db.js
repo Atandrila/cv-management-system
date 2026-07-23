@@ -2,7 +2,12 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 try {
-  const tables = await prisma.$queryRawUnsafe("SELECT name FROM sqlite_master WHERE type IN ('table','view') AND name NOT LIKE 'sqlite_%' ORDER BY name");
+  const tables = await prisma.$queryRaw`
+    SELECT tablename AS name
+    FROM pg_catalog.pg_tables
+    WHERE schemaname = 'public'
+    ORDER BY tablename
+  `;
   const rows = [];
   for (const { name } of tables) {
     const result = await prisma.$queryRawUnsafe(`SELECT COUNT(*) AS count FROM "${name.replaceAll('"', '""')}"`);

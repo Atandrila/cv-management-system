@@ -1,4 +1,5 @@
 import cors from "cors";
+import connectPgSimple from "connect-pg-simple";
 import express from "express";
 import session from "express-session";
 import helmet from "helmet";
@@ -13,6 +14,7 @@ import apiRoutes from "./routes/apiRoutes.js";
 
 const app = express();
 const publicAppUrl = process.env.APP_URL || "http://localhost:5000";
+const PostgresSessionStore = connectPgSimple(session);
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: [process.env.APP_URL || "http://localhost:5000", process.env.CLIENT_URL || "http://localhost:5173"], credentials: true }));
 app.use(express.json({ limit: "1mb" }));
@@ -23,13 +25,17 @@ app.use(session({
   secret: process.env.SESSION_SECRET || "local-development-change-this-secret",
   resave: false,
   saveUninitialized: false,
+  store: new PostgresSessionStore({
+    conString: process.env.DATABASE_URL,
+    createTableIfMissing: true,
+  }),
   cookie: { httpOnly: true, secure: process.env.NODE_ENV === "production" && publicAppUrl.startsWith("https://"), sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 },
 }));
 app.use(passport.initialize());
 app.use(passport.session());
 
 app.get("/api/health", (_request, response) => response.json({ success: true, message: "CV Management API is running", timestamp: new Date().toISOString() }));
-app.get("/api/health/database", async (_request, response, next) => { try { response.json({ success: true, message: "SQLite database connected successfully", userCount: await prisma.user.count() }); } catch (error) { next(error); } });
+app.get("/api/health/database", async (_request, response, next) => { try { response.json({ success: true, message: "PostgreSQL database connected successfully", userCount: await prisma.user.count() }); } catch (error) { next(error); } });
 app.use("/api/auth", authRoutes);
 app.use("/api", apiRoutes);
 const clientDist = resolve(dirname(fileURLToPath(import.meta.url)), "../../client/dist");

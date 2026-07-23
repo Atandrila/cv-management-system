@@ -12,17 +12,37 @@ export async function getUserWithRoles(userId) {
   return prisma.user.findUnique({ where: { id: userId }, include: userWithRoles });
 }
 
+export function isBootstrapAdminEmail(email) {
+  const configuredEmails = (process.env.ADMIN_EMAILS || "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  return configuredEmails.includes(String(email || "").trim().toLowerCase());
+}
+
+async function applyConfiguredRoles(user) {
+  if (!isBootstrapAdminEmail(user.email)) return user;
+  const admin = await prisma.role.findUnique({ where: { name: "ADMIN" } });
+  if (!admin) throw new Error("Run the database seed before signing in.");
+  await prisma.userRole.upsert({
+    where: { userId_roleId: { userId: user.id, roleId: admin.id } },
+    update: {},
+    create: { userId: user.id, roleId: admin.id },
+  });
+  return getUserWithRoles(user.id);
+}
+
 async function ensureSocialUser({ provider, providerAccountId, email, firstName, lastName, photoUrl }) {
   const linked = await prisma.socialAccount.findUnique({
     where: { provider_providerAccountId: { provider, providerAccountId } },
     include: { user: { include: userWithRoles } },
   });
-  if (linked) return linked.user;
+  if (linked) return applyConfiguredRoles(linked.user);
 
   const candidate = await prisma.role.findUnique({ where: { name: "CANDIDATE" } });
   if (!candidate) throw new Error("Run the database seed before signing in.");
 
-  return prisma.user.upsert({
+  const user = await prisma.user.upsert({
     where: { email: email.toLowerCase() },
     update: {
       socialAccounts: { create: { provider, providerAccountId } },
@@ -37,6 +57,7 @@ async function ensureSocialUser({ provider, providerAccountId, email, firstName,
     },
     include: userWithRoles,
   });
+  return applyConfiguredRoles(user);
 }
 
 async function githubEmail(accessToken, profile) {

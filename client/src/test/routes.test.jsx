@@ -43,18 +43,18 @@ function userFor(role) {
 function renderRoute(route, role) {
   const user = userFor(role);
   return render(
-    <PreferencesProvider>
-      <AuthContext.Provider value={{ user, setUser: vi.fn(), loading: false, authError: "", oauthAvailability: {}, isAuthenticated: Boolean(user), loginWith: vi.fn(), demoLogin: vi.fn(), logout: vi.fn(), refreshUser: vi.fn() }}>
+    <AuthContext.Provider value={{ user, setUser: vi.fn(), loading: false, authError: "", oauthAvailability: {}, demoLoginAvailable: false, isAuthenticated: Boolean(user), loginWith: vi.fn(), demoLogin: vi.fn(), logout: vi.fn(), refreshUser: vi.fn() }}>
+      <PreferencesProvider>
         <MemoryRouter initialEntries={[route]}><AppRoutes /></MemoryRouter>
-      </AuthContext.Provider>
-    </PreferencesProvider>,
+      </PreferencesProvider>
+    </AuthContext.Provider>,
   );
 }
 
 describe("all application routes", () => {
   it.each([
-    ["/", null, "One professional profile. A tailored CV for every position."],
-    ["/login", null, "Welcome to CV Forge"],
+    ["/", null, "One profile. Every opportunity."],
+    ["/login", null, "Sign in to your workspace"],
     ["/unauthorized", null, "Access denied"],
     ["/missing-page", null, "Page not found"],
     ["/positions", null, "Positions"],
@@ -70,8 +70,17 @@ describe("all application routes", () => {
     ["/admin/users", "ADMIN", "User Management"],
     ["/admin/users/candidate/profile", "ADMIN", "Amina Rahman"],
   ])("renders %s for %s", async (route, role, heading) => {
+    localStorage.setItem("cv-language", "EN");
     apiMock.mockImplementation((path) => Promise.resolve(responseFor(path)));
     renderRoute(route, role);
     expect(await screen.findByRole("heading", { name: heading })).toBeInTheDocument();
+  });
+
+  it("renders valid Bengali navigation text when Bengali is selected", async () => {
+    localStorage.setItem("cv-language", "BN");
+    apiMock.mockImplementation((path) => Promise.resolve(responseFor(path)));
+    renderRoute("/positions", null);
+    expect(await screen.findByRole("link", { name: "হোম" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "পদসমূহ" })).toBeInTheDocument();
   });
 });

@@ -14,9 +14,9 @@ import "./index.css";
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <BrowserRouter>
-      <PreferencesProvider>
-        <AuthProvider><App /></AuthProvider>
-      </PreferencesProvider>
+      <AuthProvider>
+        <PreferencesProvider><App /></PreferencesProvider>
+      </AuthProvider>
     </BrowserRouter>
   </StrictMode>,
 );
